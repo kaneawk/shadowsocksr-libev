@@ -66,6 +66,9 @@ typedef struct server {
     obfs *obfs;
     obfs_class *protocol_plugin;
     obfs_class *obfs_plugin;
+
+    char *hostname;
+    size_t hostname_len;
 } server_t;
 
 typedef struct remote_ctx {
