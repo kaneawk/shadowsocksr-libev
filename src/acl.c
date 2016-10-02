@@ -130,7 +130,11 @@ init_firewall()
     if (pclose(fp) == 0) {
         mode = FIREWALLD_MODE;
     } else {
-        sprintf(cli, "iptables --version 2>&1");
+        /* Check whether we have permission to operate iptables.
+	 * Note that checking `iptables --version` is insufficient:
+         * eg, running within a child user namespace.
+	 */
+        sprintf(cli, "iptables -L 2>&1");
         fp = popen(cli, "r");
         if (fp == NULL)
             return -1;
@@ -219,23 +223,39 @@ set_firewall_rule(char *addr, int add)
     return 0;
 }
 
+static void
+free_firewall_rule(void *key, void *element)
+{
+    if (key == NULL)
+        return;
+    char *addr = (char *)key;
+    set_firewall_rule(addr, 0);
+    ss_free(element);
+}
+
 #endif
 
 void
-init_block_list()
+init_block_list(int firewall)
 {
     // Initialize cache
 #ifdef __linux__
-    init_firewall();
-#endif
+    if (firewall)
+        init_firewall();
+    else
+        mode = NO_FIREWALL_MODE;
+    cache_create(&block_list, 256, free_firewall_rule);
+#else
     cache_create(&block_list, 256, NULL);
+#endif
 }
 
 void
 free_block_list()
 {
 #ifdef __linux__
-    reset_firewall();
+    if (mode != NO_FIREWALL_MODE)
+        reset_firewall();
 #endif
     cache_clear(block_list, 0); // Remove all items
 }
@@ -244,12 +264,6 @@ int
 remove_from_block_list(char *addr)
 {
     size_t addr_len = strlen(addr);
-
-#ifdef __linux__
-    if (cache_key_exist(block_list, addr, addr_len))
-        set_firewall_rule(addr, 0);
-#endif
-
     return cache_remove(block_list, addr, addr_len);
 }
 
@@ -284,7 +298,8 @@ update_block_list(char *addr, int err_level)
         int *count = NULL;
         cache_lookup(block_list, addr, addr_len, &count);
         if (count != NULL) {
-            if (*count > MAX_TRIES) return 1;
+            if (*count > MAX_TRIES)
+                return 1;
             (*count) += err_level;
         }
     } else if (err_level > 0) {
@@ -292,7 +307,8 @@ update_block_list(char *addr, int err_level)
         *count = 1;
         cache_insert(block_list, addr, addr_len, count);
 #ifdef __linux__
-        set_firewall_rule(addr, 1);
+        if (mode != NO_FIREWALL_MODE)
+            set_firewall_rule(addr, 1);
 #endif
     }
 

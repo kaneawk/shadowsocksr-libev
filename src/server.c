@@ -320,6 +320,16 @@ set_linger(int fd)
 #endif
 
 static void
+reset_addr(int fd)
+{
+    char *peer_name;
+    peer_name = get_peer_name(fd);
+    if (peer_name != NULL) {
+        remove_from_block_list(peer_name);
+    }
+}
+
+static void
 report_addr(int fd, int err_level)
 {
 #ifdef __linux__
@@ -1144,7 +1154,7 @@ server_timeout_cb(EV_P_ ev_timer *watcher, int revents)
     if (server->stage < 2) {
         if (verbose) {
             size_t len = server->stage ?
-                server->header_buf->len : server->buf->len;
+                         server->header_buf->len : server->buf->len;
 #ifdef __MINGW32__
             LOGI("incomplete header: %u", len);
 #else
@@ -1344,6 +1354,9 @@ remote_send_cb(EV_P_ ev_io *w, int revents)
                 LOGI("remote connected");
             }
             remote_send_ctx->connected = 1;
+
+            // Clear the state of this address in the block list
+            reset_addr(server->fd);
 
             if (remote->buf->len == 0) {
                 server->stage = 5;
