@@ -10,6 +10,7 @@ int rand_bytes(uint8_t *output, int len);
 #include "obfsutil.c"
 #include "crc32.c"
 #include "http_simple.c"
+#include "http_post.c"
 #include "tls1.2_ticket.c"
 #include "verify.c"
 #include "auth.c"
@@ -57,19 +58,31 @@ obfs_class * new_obfs_class(char *plugin_name)
         plugin->client_decode = http_simple_client_decode;
 
         return plugin;
-    } else if (strcmp(plugin_name, "tls1.2_ticket_auth") == 0) {
+      } else if (strcmp(plugin_name, "http_post") == 0) {
         obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
-        plugin->init_data = tls12_ticket_auth_init_data;
-        plugin->new_obfs = tls12_ticket_auth_new_obfs;
+        plugin->init_data = init_data;
+        plugin->new_obfs = http_post_new_obfs;
         plugin->get_server_info = get_server_info;
         plugin->set_server_info = set_server_info;
-        plugin->dispose = tls12_ticket_auth_dispose;
+        plugin->dispose = http_post_dispose;
 
-        plugin->client_encode = tls12_ticket_auth_client_encode;
-        plugin->client_decode = tls12_ticket_auth_client_decode;
+        plugin->client_encode = http_post_client_encode;
+        plugin->client_decode = http_post_client_decode;
 
         return plugin;
-    } else if (strcmp(plugin_name, "verify_simple") == 0) {
+      } else if (strcmp(plugin_name, "tls1.2_ticket_auth") == 0) {
+          obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
+          plugin->init_data = tls12_ticket_auth_init_data;
+          plugin->new_obfs = tls12_ticket_auth_new_obfs;
+          plugin->get_server_info = get_server_info;
+          plugin->set_server_info = set_server_info;
+          plugin->dispose = tls12_ticket_auth_dispose;
+
+          plugin->client_encode = tls12_ticket_auth_client_encode;
+          plugin->client_decode = tls12_ticket_auth_client_decode;
+
+          return plugin;
+      } else if (strcmp(plugin_name, "verify_simple") == 0) {
         obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
         plugin->init_data = init_data;
         plugin->new_obfs = verify_simple_new_obfs;
@@ -81,7 +94,7 @@ obfs_class * new_obfs_class(char *plugin_name)
         plugin->client_post_decrypt = verify_simple_client_post_decrypt;
 
         return plugin;
-    } else if (strcmp(plugin_name, "auth_simple") == 0) {
+      } else if (strcmp(plugin_name, "auth_simple") == 0) {
         obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
         plugin->init_data = auth_simple_init_data;
         plugin->new_obfs = auth_simple_new_obfs;
@@ -93,7 +106,7 @@ obfs_class * new_obfs_class(char *plugin_name)
         plugin->client_post_decrypt = auth_simple_client_post_decrypt;
 
         return plugin;
-    } else if (strcmp(plugin_name, "auth_sha1") == 0) {
+      } else if (strcmp(plugin_name, "auth_sha1") == 0) {
         obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
         plugin->init_data = auth_simple_init_data;
         plugin->new_obfs = auth_simple_new_obfs;
@@ -105,7 +118,7 @@ obfs_class * new_obfs_class(char *plugin_name)
         plugin->client_post_decrypt = auth_sha1_client_post_decrypt;
 
         return plugin;
-    } else if (strcmp(plugin_name, "auth_sha1_v2") == 0) {
+      } else if (strcmp(plugin_name, "auth_sha1_v2") == 0) {
         obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
         plugin->init_data = auth_simple_init_data;
         plugin->new_obfs = auth_simple_new_obfs;
@@ -117,7 +130,7 @@ obfs_class * new_obfs_class(char *plugin_name)
         plugin->client_post_decrypt = auth_sha1_v2_client_post_decrypt;
 
         return plugin;
-    } else if (strcmp(plugin_name, "auth_sha1_v4") == 0) {
+      } else if (strcmp(plugin_name, "auth_sha1_v4") == 0) {
         obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
         plugin->init_data = auth_simple_init_data;
         plugin->new_obfs = auth_simple_new_obfs;
