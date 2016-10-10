@@ -610,7 +610,7 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
 
     if (err) {
         LOGE("invalid password or cipher");
-        report_addr(server->fd, ATTACK);
+        report_addr(server->fd, MALICIOUS);
         close_and_free_remote(EV_A_ remote);
         close_and_free_server(EV_A_ server);
         return;
@@ -990,7 +990,7 @@ server_timeout_cb(EV_P_ ev_timer *watcher, int revents)
             LOGI("incomplete header: %zu", len);
 #endif
         }
-        report_addr(server->fd, ATTACK);
+        report_addr(server->fd, SUSPICIOUS);
     }
 
     close_and_free_remote(EV_A_ remote);
