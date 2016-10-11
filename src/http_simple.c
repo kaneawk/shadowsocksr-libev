@@ -288,7 +288,7 @@ int http_post_client_encode(obfs *self, char **pencryptdata, int datalength, siz
             hostport,
             body_buffer);
     } else {
-        char result[32]={0};
+        char result[33]={0};
         boundary(result);
         sprintf(out_buffer,
             "POST /%s HTTP/1.1\r\n"
