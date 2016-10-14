@@ -252,7 +252,7 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         ev_io_start(EV_A_ & remote->send_ctx->io);
         return;
     }
-    
+
     // SSR beg
     if (server->protocol_plugin) {
         obfs_class *protocol_plugin = server->protocol_plugin;
@@ -898,16 +898,6 @@ accept_cb(EV_P_ ev_io *w, int revents)
         server->protocol_plugin->set_server_info(server->protocol, &_server_info);
     // SSR end
 
-    if (r == 0) {
-        if (verbose)
-            LOGI("connected immediately");
-        remote_send_cb(EV_A_ & remote->send_ctx->io, 0);
-    } else {
-        // listen to remote connected event
-        ev_io_start(EV_A_ & remote->send_ctx->io);
-        ev_timer_start(EV_A_ & remote->send_ctx->watcher);
-    }
-
     if (verbose) {
         int port = ((struct sockaddr_in*)&destaddr)->sin_port;
         port = (uint16_t)(port >> 8 | port << 8);
@@ -916,6 +906,8 @@ accept_cb(EV_P_ ev_io *w, int revents)
 
     // listen to remote connected event
     ev_io_start(EV_A_ & remote->send_ctx->io);
+    ev_timer_start(EV_A_ & remote->send_ctx->watcher);
+    ev_io_start(EV_A_ & server->recv_ctx->io);
 }
 
 void
