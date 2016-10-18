@@ -492,24 +492,24 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                         sprintf(port, "%d", p);
                     }
                 } else if (atyp == 3) {
-                // Domain name
-                uint8_t name_len = *(uint8_t *)(buf->array + 4);
-                abuf->array[abuf->len++] = name_len;
-                memcpy(abuf->array + abuf->len, buf->array + 4 + 1, name_len + 2);
-                abuf->len += name_len + 2;
+                    // Domain name
+                    uint8_t name_len = *(uint8_t *)(buf->array + 4);
+                    abuf->array[abuf->len++] = name_len;
+                    memcpy(abuf->array + abuf->len, buf->array + 4 + 1, name_len + 2);
+                    abuf->len += name_len + 2;
 
-                if (acl || verbose) {
-                    uint16_t p =
-                        ntohs(*(uint16_t *)(buf->array + 4 + 1 + name_len));
-                    memcpy(host, buf->array + 4 + 1, name_len);
-                    host[name_len] = '\0';
-                    sprintf(port, "%d", p);
-                }
+                    if (acl || verbose) {
+                        uint16_t p =
+                            ntohs(*(uint16_t *)(buf->array + 4 + 1 + name_len));
+                        memcpy(host, buf->array + 4 + 1, name_len);
+                        host[name_len] = '\0';
+                        sprintf(port, "%d", p);
+                    }
                 } else if (atyp == 4) {
-                // IP V6
-                size_t in6_addr_len = sizeof(struct in6_addr);
-                memcpy(abuf->array + abuf->len, buf->array + 4, in6_addr_len + 2);
-                abuf->len += in6_addr_len + 2;
+                    // IP V6
+                    size_t in6_addr_len = sizeof(struct in6_addr);
+                    memcpy(abuf->array + abuf->len, buf->array + 4, in6_addr_len + 2);
+                    abuf->len += in6_addr_len + 2;
 
                     if (acl || verbose) {
                         uint16_t p = ntohs(*(uint16_t *)(buf->array + 4 + in6_addr_len));
@@ -518,42 +518,82 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                         sprintf(port, "%d", p);
                     }
                 } else {
-                bfree(abuf);
-                LOGE("unsupported addrtype: %d", request->atyp);
-                close_and_free_remote(EV_A_ remote);
-                close_and_free_server(EV_A_ server);
-                return;
+                    bfree(abuf);
+                    LOGE("unsupported addrtype: %d", request->atyp);
+                    close_and_free_remote(EV_A_ remote);
+                    close_and_free_server(EV_A_ server);
+                    return;
+                }
+
+                if (server->stage == 1) {
+                    // Fake reply
+                    struct socks5_response response;
+                    response.ver  = SVERSION;
+                    response.rep  = 0;
+                    response.rsv  = 0;
+                    response.atyp = 1;
+
+                    buffer_t resp_to_send;
+                    buffer_t *resp_buf = &resp_to_send;
+                    balloc(resp_buf, BUF_SIZE);
+
+                    memcpy(resp_buf->array, &response, sizeof(struct socks5_response));
+                    memcpy(resp_buf->array + sizeof(struct socks5_response),
+                           &sock_addr.sin_addr, sizeof(sock_addr.sin_addr));
+                    memcpy(resp_buf->array + sizeof(struct socks5_response) +
+                           sizeof(sock_addr.sin_addr),
+                           &sock_addr.sin_port, sizeof(sock_addr.sin_port));
+
+                    int reply_size = sizeof(struct socks5_response) +
+                                     sizeof(sock_addr.sin_addr) + sizeof(sock_addr.sin_port);
+
+                    int s = send(server->fd, resp_buf->array, reply_size, 0);
+
+                    bfree(resp_buf);
+
+                    if (s < reply_size) {
+                        LOGE("failed to send fake reply");
+                        bfree(abuf);
+                        close_and_free_remote(EV_A_ remote);
+                        close_and_free_server(EV_A_ server);
+                        return;
+                    }
+                    if (udp_assc) {
+                        bfree(abuf);
+                        close_and_free_remote(EV_A_ remote);
+                        close_and_free_server(EV_A_ server);
+                        return;
+                    }
                 }
 
                 size_t abuf_len  = abuf->len;
                 int sni_detected = 0;
 
                 if (atyp == 1 || atyp == 4) {
-                char *hostname;
-                uint16_t p = ntohs(*(uint16_t *)(abuf->array + abuf->len - 2));
-                int ret    = 0;
-                if (p == http_protocol->default_port)
-                    ret = http_protocol->parse_packet(buf->array + 3 + abuf->len,
-                                                      buf->len - 3 - abuf->len, &hostname);
-                else if (p == tls_protocol->default_port)
-                    ret = tls_protocol->parse_packet(buf->array + 3 + abuf->len,
-                                                     buf->len - 3 - abuf->len, &hostname);
-                if (ret == -1) {
-                    server->stage = 2;
-                    bfree(abuf);
-                    return;
-                } else if (ret > 0) {
-                    sni_detected = 1;
+                    char *hostname;
+                    uint16_t p = ntohs(*(uint16_t *)(abuf->array + abuf->len - 2));
+                    int ret    = 0;
+                    if (p == http_protocol->default_port)
+                        ret = http_protocol->parse_packet(buf->array + 3 + abuf->len,
+                                                          buf->len - 3 - abuf->len, &hostname);
+                    else if (p == tls_protocol->default_port)
+                        ret = tls_protocol->parse_packet(buf->array + 3 + abuf->len,
+                                                         buf->len - 3 - abuf->len, &hostname);
+                    if (ret == -1) {
+                        server->stage = 2;
+                        bfree(abuf);
+                        return;
+                    } else if (ret > 0) {
+                        sni_detected = 1;
 
-                    // Reconstruct address buffer
-                    abuf->len                = 0;
-                    abuf->array[abuf->len++] = 3;
-                    abuf->array[abuf->len++] = ret;
-                    memcpy(abuf->array + abuf->len, hostname, ret);
-                    abuf->len += ret;
-                    p          = htons(p);
-                    memcpy(abuf->array + abuf->len, &p, 2);
-                    abuf->len += 2;
+                        // Reconstruct address buffer
+                        abuf->len                = 0;
+                        abuf->array[abuf->len++] = 3;
+                        abuf->array[abuf->len++] = ret;
+                        memcpy(abuf->array + abuf->len, hostname, ret);
+                        abuf->len += ret;
+                        p          = htons(p);
+                        memcpy(abuf->array + abuf->len, &p, 2);
                         abuf->len += 2;
 
                         if (acl || verbose) {
