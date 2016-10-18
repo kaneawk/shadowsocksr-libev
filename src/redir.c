@@ -228,6 +228,31 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         ss_gen_hash(remote->buf, &remote->counter, server->e_ctx, BUF_SIZE);
     }
 
+    if (!remote->send_ctx->connected) {
+        // SNI
+        int ret       = 0;
+        uint16_t port = 0;
+
+        if (AF_INET6 == server->destaddr.ss_family) { // IPv6
+            port = ntohs(((struct sockaddr_in6 *)&(server->destaddr))->sin6_port);
+        } else {                             // IPv4
+            port = ntohs(((struct sockaddr_in *)&(server->destaddr))->sin_port);
+        }
+        if (port == http_protocol->default_port)
+            ret = http_protocol->parse_packet(remote->buf->array,
+                                              remote->buf->len, &server->hostname);
+        else if (port == tls_protocol->default_port)
+            ret = tls_protocol->parse_packet(remote->buf->array,
+                                             remote->buf->len, &server->hostname);
+        if (ret > 0) {
+            server->hostname_len = ret;
+        }
+
+        ev_io_stop(EV_A_ & server_recv_ctx->io);
+        ev_io_start(EV_A_ & remote->send_ctx->io);
+        return;
+    }
+    
     // SSR beg
     if (server->protocol_plugin) {
         obfs_class *protocol_plugin = server->protocol_plugin;
