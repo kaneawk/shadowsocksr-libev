@@ -19,7 +19,6 @@ typedef struct auth_simple_local_data {
     uint8_t * user_key;
     int user_key_len;
     hmac_with_key_func hmac;
-    char* salt;
 }auth_simple_local_data;
 
 void auth_simple_local_data_init(auth_simple_local_data* local) {
@@ -827,10 +826,10 @@ int auth_aes128_sha1_client_post_decrypt(obfs *self, char **pplaindata, int data
         memintcopy_lt(key + key_len - 4, local->recv_id);
 
         {
-            uint8_t hash[20];
-            local->hmac((char*)hash, (char*)recv_buffer, 2, key, key_len);
+            char hash[20];
+            local->hmac(hash, (char*)recv_buffer, 2, key, key_len);
 
-            if (hash[0] != recv_buffer[2] || hash[1] != recv_buffer[3]) {
+            if (memcmp(hash, recv_buffer + 2, 2)) {
                 local->recv_buffer_size = 0;
                 error = 1;
                 break;
@@ -847,13 +846,9 @@ int auth_aes128_sha1_client_post_decrypt(obfs *self, char **pplaindata, int data
             break;
 
         {
-            uint8_t hash[20];
-            local->hmac((char*)hash, (char *)recv_buffer, length - 4, key, key_len);
-            if (hash[0] != recv_buffer[length - 4]
-                || hash[1] != recv_buffer[length - 3]
-                || hash[2] != recv_buffer[length - 2]
-                || hash[3] != recv_buffer[length - 1]
-                )
+            char hash[20];
+            local->hmac(hash, (char *)recv_buffer, length - 4, key, key_len);
+            if (memcmp(hash, recv_buffer + length - 4, 4))
             {
                 local->recv_buffer_size = 0;
                 error = 1;
@@ -920,6 +915,8 @@ int auth_aes128_sha1_client_udp_pre_encrypt(obfs *self, char **pplaindata, int d
         plaindata = *pplaindata;
     }
     memmove(plaindata, out_buffer, outlength);
+
+    free(out_buffer);
     return outlength;
 }
 
@@ -933,11 +930,7 @@ int auth_aes128_sha1_client_udp_post_decrypt(obfs *self, char **pplaindata, int 
     char hash[20];
     local->hmac(hash, plaindata, datalength - 4, local->user_key, local->user_key_len);
 
-    if (hash[0] != plaindata[datalength - 4]
-        || hash[1] != plaindata[datalength - 3]
-        || hash[2] != plaindata[datalength - 2]
-        || hash[3] != plaindata[datalength - 1]
-        )
+    if (memcmp(hash, plaindata + datalength - 4, 4))
     {
         return 0;
     }
