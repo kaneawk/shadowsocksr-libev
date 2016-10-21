@@ -681,28 +681,11 @@ remote_recv_cb(EV_P_ ev_io *w, int revents)
     buf->len = r;
 
 #ifdef MODULE_LOCAL
-
     int err = ss_decrypt_all(buf, server_ctx->method, 0, buf_size);
     if (err) {
         // drop the packet silently
         goto CLEAN_UP;
     }
-
-    //SSR beg
-    if (server_ctx->protocol_plugin) {
-        obfs_class *protocol_plugin = server_ctx->protocol_plugin;
-        if (protocol_plugin->client_udp_post_decrypt) {
-            buf->len = protocol_plugin->client_udp_post_decrypt(server_ctx->protocol, &buf->array, buf->len);
-            if ((int)buf->len < 0) {
-                LOGE("client_post_decrypt");
-                close_and_free_remote(EV_A_ remote_ctx);
-                return;
-            }
-            if ( buf->len == 0 )
-                return;
-        }
-    }
-    // SSR end
 
 #ifdef MODULE_REDIR
     struct sockaddr_storage dst_addr;
@@ -1177,15 +1160,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         buf->array[0] |= ONETIMEAUTH_FLAG;
     }
 
-    // SSR beg
-    if (server_ctx->protocol_plugin) {
-        obfs_class *protocol_plugin = server_ctx->protocol_plugin;
-        if (protocol_plugin->client_udp_pre_encrypt) {
-            buf->len = protocol_plugin->client_udp_pre_encrypt(server_ctx->protocol, &buf, buf_size);
-        }
-    }
-    //SSR end
-
     int err = ss_encrypt_all(buf, server_ctx->method, server_ctx->auth, buf_size);
 
     if (err) {
@@ -1377,12 +1351,6 @@ init_udprelay(const char *server_host, const char *server_port,
 #ifdef MODULE_LOCAL
     server_ctx->remote_addr     = remote_addr;
     server_ctx->remote_addr_len = remote_addr_len;
-    //SSR beg
-    server_ctx->protocol_plugin = new_obfs_class((char *)protocol);
-    if (server_ctx->protocol_plugin) {
-        server_ctx->protocol = server_ctx->protocol_plugin->new_obfs();
-    }
-    //SSR end
 #ifdef MODULE_TUNNEL
     server_ctx->tunnel_addr = tunnel_addr;
 #endif
@@ -1401,18 +1369,6 @@ free_udprelay()
     struct ev_loop *loop = EV_DEFAULT;
     while (server_num-- > 0) {
         server_ctx_t *server_ctx = server_ctx_list[server_num];
-
-#ifdef MODULE_LOCAL
-        //SSR beg
-        if (server_ctx->protocol_plugin) {
-            server_ctx->protocol_plugin->dispose(server_ctx->protocol);
-            server_ctx->protocol = NULL;
-            free_obfs_class(server_ctx->protocol_plugin);
-            server_ctx->protocol_plugin = NULL;
-        }
-        //SSR end
-#endif
-
         ev_io_stop(loop, &server_ctx->io);
         close(server_ctx->fd);
         cache_delete(server_ctx->conn_cache, 0);
