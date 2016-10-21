@@ -27,7 +27,9 @@
 #include <time.h>
 
 #include "encrypt.h"
+#include "obfs.h"
 #include "jconf.h"
+#include "protocol.h"
 
 #ifdef MODULE_REMOTE
 #include "resolv.h"
@@ -59,6 +61,9 @@ typedef struct server_ctx {
 #ifdef MODULE_REMOTE
     struct ev_loop *loop;
 #endif
+    // SSR
+    obfs *protocol;
+    obfs_class *protocol_plugin;
 } server_ctx_t;
 
 #ifdef MODULE_REMOTE
