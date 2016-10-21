@@ -18,6 +18,7 @@ typedef struct auth_simple_local_data {
     uint8_t * user_key;
     int user_key_len;
     hmac_with_key_func hmac;
+    char* salt;
 }auth_simple_local_data;
 
 void auth_simple_local_data_init(auth_simple_local_data* local) {
@@ -29,6 +30,7 @@ void auth_simple_local_data_init(auth_simple_local_data* local) {
     local->user_key = 0;
     local->user_key_len = 0;
     local->hmac = 0;
+    local->salt = "";
 }
 
 void * auth_simple_init_data() {
@@ -51,6 +53,7 @@ obfs * auth_aes128_md5_new_obfs() {
     self->l_data = malloc(sizeof(auth_simple_local_data));
     auth_simple_local_data_init((auth_simple_local_data*)self->l_data);
     ((auth_simple_local_data*)self->l_data)->hmac = ss_md5_hmac_with_key;
+    ((auth_simple_local_data*)self->l_data)->salt = "auth_aes128_md5";
     return self;
 }
 
@@ -59,6 +62,7 @@ obfs * auth_aes128_sha1_new_obfs() {
     self->l_data = malloc(sizeof(auth_simple_local_data));
     auth_simple_local_data_init((auth_simple_local_data*)self->l_data);
     ((auth_simple_local_data*)self->l_data)->hmac = ss_sha1_hmac_with_key;
+    ((auth_simple_local_data*)self->l_data)->salt = "auth_aes128_sha1";
     return self;
 }
 
@@ -650,7 +654,7 @@ int auth_aes128_sha1_pack_data(char *data, int datalength, char *outdata, auth_s
 
     {
         char hash[20];
-        ss_sha1_hmac_with_key(hash, outdata, 2, key, key_len);
+        local->hmac(hash, outdata, 2, key, key_len);
         memcpy(outdata + 2, hash, 2);
     }
 
@@ -668,7 +672,7 @@ int auth_aes128_sha1_pack_data(char *data, int datalength, char *outdata, auth_s
 
     {
         char hash[20];
-        ss_sha1_hmac_with_key(hash, outdata, out_size - 4, key, key_len);
+        local->hmac(hash, outdata, out_size - 4, key, key_len);
         memcpy(outdata + out_size - 4, hash, 4);
     }
     free(key);
@@ -680,7 +684,6 @@ int auth_aes128_sha1_pack_auth_data(auth_simple_global_data *global, server_info
     unsigned int rand_len = (datalength > 400 ? (xorshift128plus() & 0x200) : (xorshift128plus() & 0x400));
     int data_offset = rand_len + 16 + 4 + 4 + 7;
     int out_size = data_offset + datalength + 4;
-    const char* salt = "auth_aes128_sha1";
 
     char encrypt[24];
     char encrypt_data[16];
@@ -725,10 +728,10 @@ int auth_aes128_sha1_pack_auth_data(auth_simple_global_data *global, server_info
 
         int base64_len;
         base64_len = (local->user_key_len + 2) / 3 * 4;
-        memcpy(encrypt_key_base64 + base64_len, salt, strlen(salt));
+        memcpy(encrypt_key_base64 + base64_len, local->salt, strlen(local->salt));
 
         char enc_key[16];
-        int enc_key_len = base64_len + strlen(salt);
+        int enc_key_len = base64_len + strlen(local->salt);
         bytes_to_key_with_size(encrypt_key_base64, enc_key_len, (uint8_t*)enc_key, 16);
         ss_aes_128_cbc(encrypt, encrypt_data, enc_key);
         memcpy(encrypt + 4, encrypt_data, 16);
