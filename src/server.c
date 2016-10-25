@@ -1769,7 +1769,10 @@ main(int argc, char **argv)
                           auth, atoi(timeout), iface, NULL);
         }
 
-        LOGI("listening at %s:%s", host ? host : "*", server_port);
+        if (host && strcmp(host, ":") > 0)
+            LOGI("listening at [%s]:%s", host, server_port);
+        else
+            LOGI("listening at %s:%s", host ? host : "*", server_port);
     }
 
     if (manager_address != NULL) {
