@@ -1094,6 +1094,10 @@ main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    if (method == NULL) {
+        method = "rc4-md5";
+    }
+
     if (timeout == NULL) {
         timeout = "60";
     }

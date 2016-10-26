@@ -1470,7 +1470,7 @@ main(int argc, char **argv)
     }
 
     if (method == NULL) {
-        method = "table";
+        method = "rc4-md5";
     }
 
     if (timeout == NULL) {

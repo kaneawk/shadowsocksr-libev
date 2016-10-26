@@ -47,7 +47,22 @@ void init_block_list()
     cache_create(&block_list, 256, NULL);
 }
 
-int check_block_list(char* addr, int err_level)
+int
+remove_from_block_list(char *addr)
+{
+    size_t addr_len = strlen(addr);
+
+    return cache_remove(block_list, addr, addr_len);
+}
+
+void
+clear_block_list()
+{
+    cache_clear(block_list, 3600); // Clear items older than 1 hour
+}
+
+int
+check_block_list(char *addr, int err_level)
 {
     size_t addr_len = strlen(addr);
 
