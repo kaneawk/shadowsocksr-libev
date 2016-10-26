@@ -1589,7 +1589,10 @@ main(int argc, char **argv)
                       get_sockaddr_len(listen_ctx.remote_addr[0]), mtu, m, auth, listen_ctx.timeout, iface, protocol);
     }
 
-    LOGI("listening at %s:%s", local_addr, local_port);
+    if (strcmp(local_addr, ":") > 0)
+        LOGI("listening at [%s]:%s", local_addr, local_port);
+    else
+        LOGI("listening at %s:%s", local_addr, local_port);
 
     // setuid
     if (user != NULL) {
@@ -1753,7 +1756,10 @@ start_ss_local_server(profile_t profile)
                       get_sockaddr_len(addr), mtu, m, auth, timeout, NULL, NULL);
     }
 
-    LOGI("listening at %s:%s", local_addr, local_port_str);
+    if (strcmp(local_addr, ":") > 0)
+        LOGI("listening at [%s]:%s", local_addr, local_port_str);
+    else
+        LOGI("listening at %s:%s", local_addr, local_port_str);
 
     // Init connections
     cork_dllist_init(&connections);
