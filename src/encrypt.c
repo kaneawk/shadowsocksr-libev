@@ -453,7 +453,10 @@ int
 cipher_iv_size(const cipher_t *cipher)
 {
 #if defined(USE_CRYPTO_OPENSSL)
-    return cipher->iv_len;
+    if (cipher->info == NULL)
+        return cipher->iv_len;
+    else
+        return EVP_CIPHER_iv_length(cipher->info);
 #elif defined(USE_CRYPTO_POLARSSL) || defined(USE_CRYPTO_MBEDTLS)
     if (cipher == NULL) {
         return 0;
@@ -466,7 +469,10 @@ int
 cipher_key_size(const cipher_t *cipher)
 {
 #if defined(USE_CRYPTO_OPENSSL)
-    return cipher->key_len;
+    if (cipher->info == NULL)
+        return cipher->key_len;
+    else
+        return EVP_CIPHER_key_length(cipher->info);
 #elif defined(USE_CRYPTO_POLARSSL)
     if (cipher == NULL) {
         return 0;
@@ -541,6 +547,7 @@ bytes_to_key(const cipher_t *cipher, const digest_type_t *md,
             key[j] = md_buf[i];
         }
     }
+
     return nkey;
 
 #elif defined(USE_CRYPTO_POLARSSL)
