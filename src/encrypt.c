@@ -1425,6 +1425,7 @@ enc_key_init(int method, const char *pass)
 #endif
 
     cipher_t cipher;
+    memset(&cipher, 0, sizeof(cipher_t));
 
     // Initialize sodium for random generator
     if (sodium_init() == -1) {
@@ -1433,6 +1434,7 @@ enc_key_init(int method, const char *pass)
 
     if (method == SALSA20 || method == CHACHA20 || method == CHACHA20IETF) {
 #if defined(USE_CRYPTO_OPENSSL)
+        cipher.info    = NULL;
         cipher.key_len = supported_ciphers_key_size[method];
         cipher.iv_len  = supported_ciphers_iv_size[method];
 #endif
@@ -1453,7 +1455,7 @@ enc_key_init(int method, const char *pass)
         cipher.info = (cipher_kt_t *)get_cipher_type(method);
     }
 
-    if (cipher.info == NULL) {
+    if (cipher.info == NULL && cipher.key_len == 0) {
         do {
 #if defined(USE_CRYPTO_POLARSSL) && defined(USE_CRYPTO_APPLECC)
             if (supported_ciphers_applecc[method] != kCCAlgorithmInvalid) {
@@ -1474,8 +1476,7 @@ enc_key_init(int method, const char *pass)
                 break;
             }
 #endif
-            LOGE("Cipher %s not found in crypto library",
-                 supported_ciphers[method]);
+            LOGE("Cipher %s not found in crypto library", supported_ciphers[method]);
             FATAL("Cannot initialize cipher");
         } while (0);
     }
