@@ -317,10 +317,9 @@ report_addr(int fd, int err_level)
     peer_name = get_peer_name(fd);
     if (peer_name != NULL) {
         LOGE("failed to handshake with %s", peer_name);
-    }
-    // Block all requests from this IP, if the err# exceeds 128.
-    if (check_block_list(peer_name, err_level)) {
-        LOGE("add %s to block list", peer_name);
+        if (update_block_list(peer_name, err_level)) {
+            LOGE("add %s to block list", peer_name);
+        }
     }
 }
 
@@ -1486,7 +1485,7 @@ accept_cb(EV_P_ ev_io *w, int revents)
                 in_white_list = 1;
             }
         }
-        if (!in_white_list && check_block_list(peer_name, 0)) {
+        if (!in_white_list && check_block_list(peer_name)) {
             LOGE("block all requests from %s", peer_name);
             close(serverfd);
             return;
