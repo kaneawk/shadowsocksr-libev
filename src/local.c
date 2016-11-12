@@ -83,6 +83,8 @@
 int verbose = 0;
 int keep_resolving = 1;
 
+#include "obfs.c" // I don't want to modify makefile
+
 #ifdef ANDROID
 int vpn        = 0;
 uint64_t tx    = 0;
@@ -91,10 +93,9 @@ ev_tstamp last = 0;
 char *prefix;
 #endif
 
-#include "obfs.c" // I don't want to modify makefile
-
-static int acl = 0;
-static int mode = TCP_ONLY;
+static int acl       = 0;
+static int mode      = TCP_ONLY;
+static int ipv6first = 0;
 
 static int fast_open = 0;
 #ifdef HAVE_SETRLIMIT
@@ -651,9 +652,9 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                     int err;
                     memset(&storage, 0, sizeof(struct sockaddr_storage));
                     if (atyp == 1 || atyp == 4) {
-                        err = get_sockaddr(ip, port, &storage, 0);
+                        err = get_sockaddr(ip, port, &storage, 0, ipv6first);
                     } else {
-                        err = get_sockaddr(host, port, &storage, 1);
+                        err = get_sockaddr(host, port, &storage, 1, ipv6first);
                     }
                     if (err != -1) {
                         remote         = create_remote(server->listener, (struct sockaddr *)&storage);
@@ -786,6 +787,7 @@ stat_update_cb()
         last = now;
     }
 }
+
 #endif
 
 static void
@@ -1274,10 +1276,10 @@ main(int argc, char **argv)
     USE_TTY();
 
 #ifdef ANDROID
-    while ((c = getopt_long(argc, argv, "f:s:p:l:k:t:m:i:c:b:a:n:P:O:o:G:g:huUvVA", // SSR
+    while ((c = getopt_long(argc, argv, "f:s:p:l:k:t:m:i:c:b:a:n:P:O:o:G:g:huUvVA6", // SSR
                             long_options, &option_index)) != -1) {
 #else
-    while ((c = getopt_long(argc, argv, "f:s:p:l:k:t:m:i:c:b:a:n:P:O:o:G:g:huUvA", // SSR
+    while ((c = getopt_long(argc, argv, "f:s:p:l:k:t:m:i:c:b:a:n:P:O:o:G:g:huUvA6", // SSR
                             long_options, &option_index)) != -1) {
 #endif
         switch (c) {
@@ -1367,6 +1369,9 @@ main(int argc, char **argv)
             exit(EXIT_SUCCESS);
         case 'A':
             auth = 1;
+            break;
+        case '6':
+            ipv6first = 1;
             break;
 #ifdef ANDROID
         case 'V':
@@ -1504,6 +1509,10 @@ main(int argc, char **argv)
 #endif
     }
 
+    if (ipv6first) {
+        LOGI("resolving hostname to IPv6 address first");
+    }
+
     if (auth) {
         LOGI("onetime authentication enabled");
     }
@@ -1532,7 +1541,7 @@ main(int argc, char **argv)
                      remote_addr[i].port;
         struct sockaddr_storage *storage = ss_malloc(sizeof(struct sockaddr_storage));
         memset(storage, 0, sizeof(struct sockaddr_storage));
-        if (get_sockaddr(host, port, storage, 1) == -1) {
+        if (get_sockaddr(host, port, storage, 1, ipv6first) == -1) {
             FATAL("failed to resolve the provided hostname");
         }
         listen_ctx.remote_addr[i] = (struct sockaddr *)storage;
@@ -1709,7 +1718,7 @@ start_ss_local_server(profile_t profile)
 
     struct sockaddr_storage *storage = ss_malloc(sizeof(struct sockaddr_storage));
     memset(storage, 0, sizeof(struct sockaddr_storage));
-    if (get_sockaddr(remote_host, remote_port_str, storage, 1) == -1) {
+    if (get_sockaddr(remote_host, remote_port_str, storage, 1, ipv6first) == -1) {
         return -1;
     }
 
