@@ -281,8 +281,15 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                 }
                 // SSR end
 #ifdef ANDROID
-                tx += r;
+                tx += remote->buf->len;
 #endif
+
+                if (err) {
+                    LOGE("invalid password or cipher");
+                    close_and_free_remote(EV_A_ remote);
+                    close_and_free_server(EV_A_ server);
+                    return;
+                }
             }
 
             if (!remote->send_ctx->connected) {
@@ -845,8 +852,7 @@ remote_recv_cb(EV_P_ ev_io *w, int revents)
 #ifdef ANDROID
         rx += server->buf->len;
 #endif
-        if ( r == 0 )
-            return;
+
         // SSR beg
         if (server->obfs_plugin) {
             obfs_class *obfs_plugin = server->obfs_plugin;
@@ -1176,7 +1182,6 @@ create_remote(listen_ctx_t *listener,
     remote_t *remote = new_remote(remotefd, listener->timeout);
     remote->addr_len = get_sockaddr_len(remote_addr);
     memcpy(&(remote->addr), remote_addr, remote->addr_len);
-    remote->remote_index = index;
 
     return remote;
 }
