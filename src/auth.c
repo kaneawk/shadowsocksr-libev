@@ -31,6 +31,7 @@ void auth_simple_local_data_init(auth_simple_local_data* local) {
     local->user_key = 0;
     local->user_key_len = 0;
     local->hmac = 0;
+    local->salt = "";
 }
 
 void * auth_simple_init_data() {
@@ -683,7 +684,6 @@ int auth_aes128_sha1_pack_auth_data(auth_simple_global_data *global, server_info
     unsigned int rand_len = (datalength > 400 ? (xorshift128plus() & 0x200) : (xorshift128plus() & 0x400));
     int data_offset = rand_len + 16 + 4 + 4 + 7;
     int out_size = data_offset + datalength + 4;
-    const char* salt = local->salt;
 
     char encrypt[24];
     char encrypt_data[16];
@@ -728,10 +728,10 @@ int auth_aes128_sha1_pack_auth_data(auth_simple_global_data *global, server_info
 
         int base64_len;
         base64_len = (local->user_key_len + 2) / 3 * 4;
-        memcpy(encrypt_key_base64 + base64_len, salt, strlen(salt));
+        memcpy(encrypt_key_base64 + base64_len, local->salt, strlen(local->salt));
 
         char enc_key[16];
-        int enc_key_len = base64_len + strlen(salt);
+        int enc_key_len = base64_len + strlen(local->salt);
         bytes_to_key_with_size(encrypt_key_base64, enc_key_len, (uint8_t*)enc_key, 16);
         ss_aes_128_cbc(encrypt, encrypt_data, enc_key);
         memcpy(encrypt + 4, encrypt_data, 16);
