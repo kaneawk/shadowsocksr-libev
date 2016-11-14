@@ -1907,6 +1907,9 @@ main(int argc, char **argv)
         if (conf->nameserver != NULL) {
             nameservers[nameserver_num++] = conf->nameserver;
         }
+        if (ipv6first == 0) {
+            ipv6first = conf->ipv6_first;
+        }
     }
 
     //_compatible
