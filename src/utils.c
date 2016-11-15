@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
 #ifndef __MINGW32__
 #include <pwd.h>
 #include <grp.h>
@@ -87,6 +88,15 @@ ss_itoa(int i)
     return p;
 }
 
+int
+ss_isnumeric(const char *s) {
+    if (!s || !*s)
+        return 0;
+    while (isdigit(*s))
+        ++s;
+    return *s == '\0';
+}
+
 /*
  * setuid() and setgid() for a specified user.
  */
@@ -118,7 +128,8 @@ run_as(const char *user)
             /* Note that we use getpwnam_r() instead of getpwnam(),
              * which returns its result in a statically allocated buffer and
              * cannot be considered thread safe. */
-            err = getpwnam_r(user, &pwdbuf, buf, buflen, &pwd);
+            err = uid >= 0 ? getpwuid_r((uid_t)uid, &pwdbuf, buf, buflen, &pwd)
+                : getpwnam_r(user, &pwdbuf, buf, buflen, &pwd);
 
             if (err == 0 && pwd) {
                 /* setgid first, because we may not be allowed to do it anymore after setuid */
@@ -163,7 +174,7 @@ run_as(const char *user)
         /* No getpwnam_r() :-(  We'll use getpwnam() and hope for the best. */
         struct passwd *pwd;
 
-        if (!(pwd = getpwnam(user))) {
+        if (!(pwd = uid >=0 ? getpwuid((uid_t)uid) : getpwnam(user))) {
             LOGE("run_as user %s could not be found.", user);
             return 0;
         }
