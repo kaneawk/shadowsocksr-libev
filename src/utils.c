@@ -94,6 +94,17 @@ run_as(const char *user)
 {
 #ifndef __MINGW32__
     if (user[0]) {
+        /* Convert user to a long integer if it is a non-negative number.
+         * -1 means it is a user name. */
+        long uid = -1;
+        if (ss_isnumeric(user)) {
+            errno = 0;
+            char *endptr;
+            uid = strtol(user, &endptr, 10);
+            if (errno || endptr == user)
+                uid = -1;
+        }
+
 #ifdef HAVE_GETPWNAM_R
         struct passwd pwdbuf, *pwd;
         size_t buflen;
