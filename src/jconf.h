@@ -58,6 +58,7 @@ typedef struct {
     char *obfs; // SSR
     char *obfs_param; // SSR
     char *timeout;
+    char *user;
     int auth;
     int fast_open;
     int nofile;
