@@ -228,9 +228,4 @@ void *ss_realloc(void *ptr, size_t new_size);
         ptr = NULL;      \
     } while (0)
 
-#ifndef container_of
-#define container_of(ptr, type, member) \
-                          ((type *) ((char *)(ptr) - offsetof(type, member)))
-#endif
-
 #endif // _UTILS_H
