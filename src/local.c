@@ -666,6 +666,14 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
             }
 
             if (acl) {
+                if (outbound_block_match_host(host) == 1) {
+                    if (verbose)
+                        LOGI("outbound blocked %s", host);
+                    close_and_free_remote(EV_A_ remote);
+                    close_and_free_server(EV_A_ server);
+                    return;
+                }
+
                 int host_match = acl_match_host(host);
                 int bypass = 0;
                 if (host_match > 0)
@@ -673,6 +681,14 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                 else if (host_match < 0)
                     bypass = 0;                 // proxy hostnames in white list
                 else {
+                    if (outbound_block_match_host(ip) == 1) {
+                        if (verbose)
+                            LOGI("outbound blocked %s", ip);
+                        close_and_free_remote(EV_A_ remote);
+                        close_and_free_server(EV_A_ server);
+                        return;
+                    }
+
                     int ip_match = acl_match_host(ip);
                     switch (get_acl_mode()) {
                         case BLACK_LIST:
