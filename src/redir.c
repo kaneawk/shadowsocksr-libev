@@ -278,7 +278,7 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         }
     }
     // SSR end
-    
+
     if (!remote->send_ctx->connected) {
         // SNI
         int ret       = 0;
@@ -303,7 +303,7 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         ev_io_start(EV_A_ & remote->send_ctx->io);
         return;
     }
-    
+
     int s = send(remote->fd, remote->buf->array, remote->buf->len, 0);
 
     if (s == -1) {
