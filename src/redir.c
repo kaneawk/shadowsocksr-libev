@@ -279,7 +279,7 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         }
     }
     // SSR end
-    
+
     if (!remote->send_ctx->connected) {
         ev_io_stop(EV_A_ & server_recv_ctx->io);
         ev_io_start(EV_A_ & remote->send_ctx->io);
@@ -1240,7 +1240,7 @@ main(int argc, char **argv)
     if (mode != TCP_ONLY) {
         LOGI("UDP relay enabled");
         init_udprelay(local_addr, local_port, listen_ctx.remote_addr[0],
-                      get_sockaddr_len(listen_ctx.remote_addr[0]), mtu, m, auth, listen_ctx.timeout, NULL, protocol);
+                      get_sockaddr_len(listen_ctx.remote_addr[0]), mtu, m, auth, listen_ctx.timeout, NULL, protocol, protocol_param);
     }
 
     if (mode == UDP_ONLY) {
