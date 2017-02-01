@@ -66,7 +66,6 @@ typedef struct server {
     ssize_t buf_capacity;
     buffer_t *header_buf;
 
-    int auth;
     struct chunk *chunk;
 
     struct enc_ctx *e_ctx;
