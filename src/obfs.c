@@ -58,9 +58,6 @@ obfs_class * new_obfs_class(char *plugin_name)
         plugin->client_encode = http_simple_client_encode;
         plugin->client_decode = http_simple_client_decode;
 
-        plugin->server_encode = http_simple_server_encode;
-        plugin->server_decode = http_simple_server_decode;
-
         return plugin;
     } else if (strcmp(plugin_name, "http_post") == 0) {
         obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
@@ -73,9 +70,6 @@ obfs_class * new_obfs_class(char *plugin_name)
         plugin->client_encode = http_post_client_encode;
         plugin->client_decode = http_simple_client_decode;
 
-        plugin->server_encode = http_simple_server_encode;
-        plugin->server_decode = http_simple_server_decode;
-
         return plugin;
     } else if (strcmp(plugin_name, "tls1.2_ticket_auth") == 0) {
         obfs_class * plugin = (obfs_class*)malloc(sizeof(obfs));
@@ -87,9 +81,6 @@ obfs_class * new_obfs_class(char *plugin_name)
 
         plugin->client_encode = tls12_ticket_auth_client_encode;
         plugin->client_decode = tls12_ticket_auth_client_decode;
-
-        plugin->server_encode = tls12_ticket_auth_server_encode;
-        plugin->server_decode = tls12_ticket_auth_server_decode;
 
         return plugin;
     } else if (strcmp(plugin_name, "verify_simple") == 0) {
@@ -104,11 +95,6 @@ obfs_class * new_obfs_class(char *plugin_name)
         plugin->client_post_decrypt = verify_simple_client_post_decrypt;
         plugin->client_udp_pre_encrypt = NULL;
         plugin->client_udp_post_decrypt = NULL;
-
-        plugin->server_pre_encrypt = verify_simple_server_pre_encrypt;
-        plugin->server_post_decrypt = verify_simple_server_post_decrypt;
-        plugin->server_udp_pre_encrypt = NULL;
-        plugin->server_udp_post_decrypt = NULL;
 
         return plugin;
     } else if (strcmp(plugin_name, "auth_simple") == 0) {

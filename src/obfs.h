@@ -62,31 +62,6 @@ typedef struct obfs_class {
             char **pplaindata,
             int datalength,
             size_t* capacity);
-    int (*server_pre_encrypt)(obfs *self,
-            char **pplaindata,
-            int datalength,
-            size_t* capacity);
-    int (*server_post_decrypt)(obfs *self,
-            char **pplaindata,
-            int datalength,
-            size_t* capacity);
-    int (*server_udp_pre_encrypt)(obfs *self,
-            char **pplaindata,
-            int datalength,
-            size_t* capacity);
-    int (*server_udp_post_decrypt)(obfs *self,
-            char **pplaindata,
-            int datalength,
-            size_t* capacity);
-    int (*server_encode)(obfs *self,
-            char **pencryptdata,
-            int datalength,
-            size_t* capacity);
-    int (*server_decode)(obfs *self,
-            char **pencryptdata,
-            int datalength,
-            size_t* capacity,
-            int *needsendback);
 }obfs_class;
 
 obfs_class * new_obfs_class(char *plugin_name);

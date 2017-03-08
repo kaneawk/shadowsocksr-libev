@@ -63,8 +63,6 @@
 #include "acl.h"
 #include "server.h"
 
-#include "obfs.c" // I don't want to modify makefile
-
 #ifndef EAGAIN
 #define EAGAIN EWOULDBLOCK
 #endif
@@ -115,9 +113,6 @@ static int acl       = 0;
 static int mode      = TCP_ONLY;
 static int auth      = 0;
 static int ipv6first = 0;
-
-static int protocol_compatible = 0;//SSR
-static int obfs_compatible = 0;//SSR
 
 static int fast_open = 0;
 #ifdef HAVE_SETRLIMIT
@@ -674,52 +669,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         buf->len = r;
     }
 
-    // SSR beg
-
-    if (server->obfs_plugin) {
-        obfs_class *obfs_plugin = server->obfs_plugin;
-        if (obfs_plugin->server_decode) {
-            int needsendback = 0;
-
-            if(obfs_compatible == 1)
-            {
-                char *back_buf = (char*)malloc(sizeof(buffer_t));
-                memcpy(back_buf, buf, sizeof(buffer_t));
-                buf->len = obfs_plugin->server_decode(server->obfs, &buf->array, buf->len, &buf->capacity, &needsendback);
-
-                if ((int)buf->len < 0)
-                {
-                    LOGE("obfs_compatible");
-                    memcpy(buf, back_buf, sizeof(buffer_t));
-                    free(back_buf);
-                    server->obfs_compatible_state = 1;
-                }
-            }
-            else
-            {
-                buf->len = obfs_plugin->server_decode(server->obfs, &buf->array, buf->len, &buf->capacity, &needsendback);
-                if ((int)buf->len < 0) {
-                    LOGE("server_decode");
-                    close_and_free_remote(EV_A_ remote);
-                    close_and_free_server(EV_A_ server);
-                    return;
-                }
-            }
-
-            if (needsendback) {
-                size_t capacity = BUF_SIZE;
-                char *sendback_buf = (char*)malloc(capacity);
-                obfs_class *obfs_plugin = server->obfs_plugin;
-                if (obfs_plugin->server_encode) {
-                    int len = obfs_plugin->server_encode(server->obfs, &sendback_buf, 0, &capacity);
-                    send(server->fd, sendback_buf, len, 0);
-                }
-                free(sendback_buf);
-                return;
-            }
-        }
-    }
-
     int err = ss_decrypt(buf, server->d_ctx, BUF_SIZE);
 
     if (err) {
@@ -728,49 +677,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         close_and_free_server(EV_A_ server);
         return;
     }
-
-    if (server->protocol_plugin) {
-        obfs_class *protocol_plugin = server->protocol_plugin;
-        if (protocol_plugin->server_post_decrypt) {
-
-            if(protocol_compatible == 1)
-            {
-                char *back_buf = (char*)malloc(sizeof(buffer_t));
-                memcpy(back_buf, buf, sizeof(buffer_t));
-                buf->len = protocol_plugin->server_post_decrypt(server->protocol, &buf->array, buf->len, &buf->capacity);
-
-                if ((int)buf->len < 0) {
-                    LOGE("protocol_compatible");
-                    memcpy(buf, back_buf, sizeof(buffer_t));
-                    free(back_buf);
-                    server->protocol_compatible_state = 1;
-                }
-                if ( buf->len == 0 )
-                {
-                    LOGE("protocol_compatible");
-                    memcpy(buf, back_buf, sizeof(buffer_t));
-                    free(back_buf);
-                    server->protocol_compatible_state = 1;
-                }
-            }
-            else
-            {
-                buf->len = protocol_plugin->server_post_decrypt(server->protocol, &buf->array, buf->len, &buf->capacity);
-                if ((int)buf->len < 0) {
-                    LOGE("server_post_decrypt");
-                    close_and_free_remote(EV_A_ remote);
-                    close_and_free_server(EV_A_ server);
-                    return;
-                }
-                if ( buf->len == 0 )
-                {
-                    LOGE("server_post_decrypt");
-                    return;
-                }
-            }
-        }
-    }
-    // SSR end
 
     // handle incomplete header part 2
     if (server->stage == STAGE_INIT) {
@@ -824,7 +730,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
             close_and_free_remote(EV_A_ remote);
             return;
         }
-
         int s = send(remote->fd, remote->buf->array, remote->buf->len, 0);
         if (s == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -1037,7 +942,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
             close_and_free_server(EV_A_ server);
             return;
         }
-
 
         if (!need_query) {
             remote_t *remote = connect_to_remote(EV_A_ &info, server);
@@ -1275,22 +1179,6 @@ remote_recv_cb(EV_P_ ev_io *w, int revents)
     rx += r;
 
     server->buf->len = r;
-
-    // SSR beg
-    server_info _server_info;
-    if (server->obfs_plugin) {
-        server->obfs_plugin->get_server_info(server->obfs, &_server_info);
-        _server_info.head_len = get_head_size(server->buf->array, server->buf->len, 30);
-        server->obfs_plugin->set_server_info(server->obfs, &_server_info);
-    }
-
-    if (server->protocol_plugin && server->obfs_compatible_state == 0) {
-        obfs_class *protocol_plugin = server->protocol_plugin;
-        if (protocol_plugin->server_pre_encrypt) {
-            server->buf->len = protocol_plugin->server_pre_encrypt(server->protocol, &server->buf->array, server->buf->len, &server->buf->capacity);
-        }
-    }
-
     int err = ss_encrypt(server->buf, server->e_ctx, BUF_SIZE);
 
     if (err) {
@@ -1299,14 +1187,6 @@ remote_recv_cb(EV_P_ ev_io *w, int revents)
         close_and_free_server(EV_A_ server);
         return;
     }
-
-    if (server->obfs_plugin && server->obfs_compatible_state == 0) {
-        obfs_class *obfs_plugin = server->obfs_plugin;
-        if (obfs_plugin->server_encode) {
-            server->buf->len = obfs_plugin->server_encode(server->obfs, &server->buf->array, server->buf->len, &server->buf->capacity);
-        }
-    }
-    // SSR end
 
     int s = send(server->fd, server->buf->array, server->buf->len, 0);
 
@@ -1656,41 +1536,6 @@ accept_cb(EV_P_ ev_io *w, int revents)
     }
 
     server_t *server = new_server(serverfd, listener);
-
-    // SSR beg
-    server->obfs_plugin = new_obfs_class(server->listen_ctx->obfs_name);
-    if (server->obfs_plugin) {
-        server->obfs = server->obfs_plugin->new_obfs();
-        server->obfs_compatible_state = 0;
-    }
-    server->protocol_plugin = new_obfs_class(server->listen_ctx->protocol_name);
-    if (server->protocol_plugin) {
-        server->protocol = server->protocol_plugin->new_obfs();
-        server->protocol_compatible_state = 0;
-    }
-    server_info _server_info;
-    memset(&_server_info, 0, sizeof(server_info));
-    _server_info.param = server->listen_ctx->obfs_param;
-    if(server->obfs_plugin)
-        _server_info.g_data = server->obfs_plugin->init_data();
-    _server_info.head_len = 7;
-    _server_info.iv = server->e_ctx->evp.iv;
-    _server_info.iv_len = enc_get_iv_len();
-    _server_info.key = enc_get_key();
-    _server_info.key_len = enc_get_key_len();
-    _server_info.tcp_mss = 1460;
-
-    if (server->obfs_plugin)
-        server->obfs_plugin->set_server_info(server->obfs, &_server_info);
-
-    _server_info.param = server->listen_ctx->protocol_param;
-    if (server->protocol_plugin)
-        _server_info.g_data = server->protocol_plugin->init_data();
-
-    if (server->protocol_plugin)
-        server->protocol_plugin->set_server_info(server->protocol, &_server_info);
-    // SSR end
-
     ev_io_start(EV_A_ & server->recv_ctx->io);
     ev_timer_start(EV_A_ & server->recv_ctx->watcher);
 }
@@ -1706,11 +1551,7 @@ main(int argc, char **argv)
     char *user      = NULL;
     char *password  = NULL;
     char *timeout   = NULL;
-    char *protocol = NULL; // SSR
-    char *protocol_param = NULL; // SSR
-    char *method = NULL;
-    char *obfs = NULL; // SSR
-    char *obfs_param = NULL; // SSR
+    char *method    = NULL;
     char *pid_path  = NULL;
     char *conf_path = NULL;
     char *iface     = NULL;
@@ -1739,7 +1580,7 @@ main(int argc, char **argv)
 
     USE_TTY();
 
-    while ((c = getopt_long(argc, argv, "f:s:p:l:k:t:m:b:c:i:d:a:n:O:o:G:g:huUvA6",
+    while ((c = getopt_long(argc, argv, "f:s:p:l:k:t:m:b:c:i:d:a:n:huUvA6",
                             long_options, &option_index)) != -1) {
         switch (c) {
         case 0:
@@ -1785,23 +1626,9 @@ main(int argc, char **argv)
         case 't':
             timeout = optarg;
             break;
-        // SSR beg
-        case 'O':
-            protocol = optarg;
-            break;
         case 'm':
             method = optarg;
             break;
-        case 'o':
-            obfs = optarg;
-            break;
-        case 'G':
-            protocol_param = optarg;
-            break;
-        case 'g':
-            obfs_param = optarg;
-            break;
-        // SSR end
         case 'c':
             conf_path = optarg;
             break;
@@ -1871,28 +1698,9 @@ main(int argc, char **argv)
         if (password == NULL) {
             password = conf->password;
         }
-        // SSR beg
-        if (protocol == NULL) {
-            protocol = conf->protocol;
-            LOGI("protocol %s", protocol);
-        }
-        if (protocol_param == NULL) {
-            protocol_param = conf->protocol_param;
-            LOGI("protocol_param %s", obfs_param);
-        }
         if (method == NULL) {
             method = conf->method;
-            LOGI("method %s", method);
         }
-        if (obfs == NULL) {
-            obfs = conf->obfs;
-            LOGI("obfs %s", obfs);
-        }
-        if (obfs_param == NULL) {
-            obfs_param = conf->obfs_param;
-            LOGI("obfs_param %s", obfs_param);
-        }
-        // SSR end
         if (timeout == NULL) {
             timeout = conf->timeout;
         }
@@ -1929,52 +1737,6 @@ main(int argc, char **argv)
         }
     }
 
-    //_compatible
-    if(strlen(protocol)>11)
-    {
-        char *text;
-        text = (char*)malloc(12);
-        memcpy(text, protocol + strlen(protocol) - 11, 12);
-
-        if(strcmp(text, "_compatible") == 0)
-        {
-            free(text);
-            text = (char*)malloc(strlen(protocol) - 11);
-            memcpy(text, protocol, strlen(protocol) - 11);
-            int length = strlen(protocol) - 11;
-            free(protocol);
-            obfs = (char*)malloc(length);
-            memset(protocol, 0x00, length);
-            memcpy(protocol, text, length);
-            LOGI("protocol compatible enable, %s", protocol);
-            free(text);
-            protocol_compatible = 1;
-        }
-    }
-
-    if(strlen(obfs)>11)
-    {
-        char *text;
-        text = (char*)malloc(12);
-        memcpy(text, obfs + strlen(obfs) - 11, 12);
-
-        if(strcmp(text, "_compatible") == 0)
-        {
-            free(text);
-            text = (char*)malloc(strlen(obfs) - 11);
-            memcpy(text, obfs, strlen(obfs) - 11);
-            int length = strlen(obfs) - 11;
-            free(obfs);
-            obfs = (char*)malloc(length);
-            memset(obfs, 0x00, length);
-            memcpy(obfs, text, length);
-            LOGI("obfs compatible enable, %s", obfs);
-            free(text);
-            obfs_compatible = 1;
-        }
-    }
-
-
     if (server_num == 0) {
         server_host[server_num++] = NULL;
     }
@@ -1982,11 +1744,6 @@ main(int argc, char **argv)
     if (server_num == 0 || server_port == NULL || password == NULL) {
         usage();
         exit(EXIT_FAILURE);
-    }
-
-    if (protocol && strcmp(protocol, "verify_sha1") == 0) {
-        auth = 1;
-        protocol = NULL;
     }
 
     if (method == NULL) {
@@ -2105,19 +1862,6 @@ main(int argc, char **argv)
             listen_ctx->fd      = listenfd;
             listen_ctx->method  = m;
             listen_ctx->iface   = iface;
-
-            // SSR beg
-            listen_ctx->protocol_name = protocol;
-            listen_ctx->protocol_param = protocol_param;
-            listen_ctx->method = m;
-            listen_ctx->obfs_name = obfs;
-            listen_ctx->obfs_param = obfs_param;
-            listen_ctx->list_protocol_global = malloc(sizeof(void *));
-            listen_ctx->list_obfs_global = malloc(sizeof(void *));
-            memset(listen_ctx->list_protocol_global, 0, sizeof(void *));
-            memset(listen_ctx->list_obfs_global, 0, sizeof(void *));
-            // SSR end
-
             listen_ctx->loop    = loop;
 
             ev_io_init(&listen_ctx->io, accept_cb, listenfd, EV_READ);
@@ -2127,7 +1871,7 @@ main(int argc, char **argv)
         // Setup UDP
         if (mode != TCP_ONLY) {
             init_udprelay(server_host[index], server_port, mtu, m,
-                          auth, atoi(timeout), iface, protocol, protocol_param);
+                          auth, atoi(timeout), iface, NULL, NULL);
         }
 
         if (host && strcmp(host, ":") > 0)

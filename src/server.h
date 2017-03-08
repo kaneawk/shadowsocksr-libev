@@ -30,8 +30,6 @@
 #include "encrypt.h"
 #include "jconf.h"
 #include "resolv.h"
-#include "obfs.h"
-#include "protocol.h"
 
 #include "common.h"
 
@@ -42,14 +40,6 @@ typedef struct listen_ctx {
     int method;
     char *iface;
     struct ev_loop *loop;
-
-    // SSR
-    char *protocol_name;
-    char *protocol_param;
-    char *obfs_name;
-    char *obfs_param;
-    void **list_protocol_global;
-    void **list_obfs_global;
 } listen_ctx_t;
 
 typedef struct server_ctx {
@@ -79,14 +69,6 @@ typedef struct server {
     struct ResolvQuery *query;
 
     struct cork_dllist_item entries;
-
-    // SSR
-    obfs *protocol;
-    obfs *obfs;
-    obfs_class *protocol_plugin;
-    obfs_class *obfs_plugin;
-    int obfs_compatible_state;
-    int protocol_compatible_state;
 } server_t;
 
 typedef struct query {
@@ -107,9 +89,6 @@ typedef struct remote {
     struct remote_ctx *recv_ctx;
     struct remote_ctx *send_ctx;
     struct server *server;
-
-    // SSR
-    int remote_index;
 } remote_t;
 
 #endif // _SERVER_H

@@ -15,7 +15,4 @@ int http_simple_client_decode(obfs *self, char **pencryptdata, int datalength, s
 
 int http_post_client_encode(obfs *self, char **pencryptdata, int datalength, size_t* capacity);
 
-int http_simple_server_encode(obfs *self, char **pencryptdata, int datalength, size_t* capacity);
-int http_simple_server_decode(obfs *self, char **pencryptdata, int datalength, size_t* capacity, int *needsendback);
-
 #endif // _HTTP_SIMPLE_H
