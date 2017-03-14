@@ -93,7 +93,7 @@
 int verbose = 0;
 int keep_resolving = 1;
 
-#include "obfs.c" // I don't want to modify makefile
+#include "includeobfs.h" // I don't want to modify makefile
 
 #ifdef ANDROID
 int vpn        = 0;
