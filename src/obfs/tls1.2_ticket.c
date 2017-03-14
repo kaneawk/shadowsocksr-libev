@@ -1,5 +1,12 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <time.h>
 
 #include "tls1.2_ticket.h"
+#include "obfs.h"
+#include "obfsutil.h"
+#include "encrypt.h"
 #include "list.c"
 
 typedef struct tls12_ticket_auth_global_data {
