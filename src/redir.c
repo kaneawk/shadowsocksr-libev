@@ -502,14 +502,6 @@ remote_recv_cb(EV_P_ ev_io *w, int revents)
         ev_io_stop(EV_A_ & remote_recv_ctx->io);
         ev_io_start(EV_A_ & server->send_ctx->io);
     }
-
-    // Disable TCP_NODELAY after the first response are sent
-    if (!remote->recv_ctx->connected) {
-        int opt = 0;
-        setsockopt(server->fd, SOL_TCP, TCP_NODELAY, &opt, sizeof(opt));
-        setsockopt(remote->fd, SOL_TCP, TCP_NODELAY, &opt, sizeof(opt));
-        remote->recv_ctx->connected = 1;
-    }
 }
 
 static void
@@ -585,7 +577,7 @@ remote_send_cb(EV_P_ ev_io *w, int revents)
                 remote->buf->len = abuf->len;
             }
             bfree(abuf);
-            
+
             // SSR beg
             server_info _server_info;
             if (server->obfs_plugin) {
