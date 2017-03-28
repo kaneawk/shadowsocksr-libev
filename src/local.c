@@ -1331,11 +1331,12 @@ main(int argc, char **argv)
 
 #ifdef ANDROID
     while ((c = getopt_long(argc, argv, "f:s:p:l:k:t:m:i:c:b:a:n:P:O:o:G:g:huUvVA6", // SSR
-                            long_options, &option_index)) != -1) {
+                            long_options, &option_index)) != -1)
 #else
     while ((c = getopt_long(argc, argv, "f:s:p:l:k:t:m:i:c:b:a:n:P:O:o:G:g:huUvA6", // SSR
-                            long_options, &option_index)) != -1) {
+                            long_options, &option_index)) != -1)
 #endif
+    {
         switch (c) {
         case 0:
             if (option_index == 0) {
